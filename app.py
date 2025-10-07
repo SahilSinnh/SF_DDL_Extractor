@@ -506,7 +506,7 @@ else:
     # Show login form if not in Snowflake and not logged in
     if not st.session_state['is_snowflake']:
         login_ui.show_login_form()
-        st.rerun()  # Force page refresh to show main UI
+        #st.rerun()  # Force page refresh to show main UI
     else:
         # This shouldn't happen, but just in case
         st.error("Unexpected state: Running in Snowflake but not logged in.")
