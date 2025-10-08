@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 
 # Import modularized functions
 import snowflake_utils as sf
-import parser
+import sql_parser
 import dependencies
 import graph_utils
 import login_ui
@@ -178,7 +178,7 @@ if st.session_state['logged_in']:
                         
         db_options = ["— Select a database —"] + sf.list_databases()
         selected_db = st.selectbox(
-            f":orange[**{parser.get_material_icon('DATABASE')} Database**]",
+            f":orange[**{sql_parser.get_material_icon('DATABASE')} Database**]",
             db_options,
             index=0,
             key='db_selector'
@@ -196,11 +196,11 @@ if st.session_state['logged_in']:
                     if ddl_text is not None:
                         raw_objects = []
                         full_ddl_text = (ddl_text or "") + (stage_ddls or "")
-                        statements = parser.split_sql_statements(full_ddl_text)
+                        statements = sql_parser.split_sql_statements(full_ddl_text)
                         for idx, stmt in enumerate(statements):
                             # Remove database references from the statement
-                            cleaned_stmt = parser.remove_database_references(stmt, selected_db)
-                            meta: Optional[Dict[str, Any]] = parser.extract_object_metadata(cleaned_stmt)
+                            cleaned_stmt = sql_parser.remove_database_references(stmt, selected_db)
+                            meta: Optional[Dict[str, Any]] = sql_parser.extract_object_metadata(cleaned_stmt)
 
                             if meta:
                                 if not meta.get("database"): meta["database"] = selected_db
@@ -244,7 +244,7 @@ if st.session_state['logged_in']:
 
             # --- Schema Selection in Sidebar ---
             if st.session_state.objects:
-                st.markdown(f":orange[**{parser.get_material_icon('SCHEMA')} Select Schemas**]")
+                st.markdown(f":orange[**{sql_parser.get_material_icon('SCHEMA')} Select Schemas**]")
                 all_schemas = sorted(st.session_state.grouped_objects.keys())
 
                 # Initialize or update schema selection state
@@ -390,7 +390,7 @@ if st.session_state['logged_in']:
                                 if snippet_parts:
                                     snippet_lines = []
                                     for i, block in enumerate(snippet_parts):
-                                        block_snippet = parser.build_block_snippet(block, obj_ddl_lines, final_script_lines)
+                                        block_snippet = sql_parser.build_block_snippet(block, obj_ddl_lines, final_script_lines)
                                         snippet_lines.append(block_snippet)
                                         if i < len(snippet_parts) - 1:
                                             last_line = max(k for k, _, _ in block)  # Last k in current block
@@ -533,7 +533,7 @@ if st.session_state['logged_in']:
                         # Determine object type expander state
                         obj_type_expanded = False if st.session_state.expand_all_toggle is None else st.session_state.expand_all_toggle
 
-                        with st.expander(f"{parser.get_material_icon(obj_type)} {obj_type.upper()}S ({len(obj_list)})", expanded=obj_type_expanded):
+                        with st.expander(f"{sql_parser.get_material_icon(obj_type)} {obj_type.upper()}S ({len(obj_list)})", expanded=obj_type_expanded):
                             for obj in obj_list:
                                 st.checkbox(obj['object_name'], key=obj['obj_key'])
 
