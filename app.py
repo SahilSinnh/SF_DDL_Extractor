@@ -14,9 +14,11 @@ import graph_utils
 import login_ui
 import streamlit.components.v1 as components
 
+# By-Line
+with st.container():
+    st.markdown("<span style='position: absolute; top: 8%; right: 10%;'>:gray[Created by] :rainbow[**Sahil Singh**]</span>", unsafe_allow_html=True)
 
 # Initialize session state and parameters for Snowflake session and login
-
 st.query_params["sf"] = "None" if "sf" not in st.query_params else st.query_params["sf"]
 
 try:
@@ -30,6 +32,7 @@ except:
     st.query_params["sf"] = "False"
     
 st.session_state['is_snowflake'] = st.query_params["sf"] == "True"
+
 
 # -----------------------------
 # STATE MANAGEMENT HELPERS
@@ -159,12 +162,12 @@ if st.session_state['logged_in']:
         curr_role = st.session_state['snowflake_session'].get_current_role().replace('"','')
         a, b = st.columns([2,1])
         with a:
+            if st.session_state['is_snowflake']:
+                st.write(f"`(Snowsight)`")
+            else:
+                st.write(f"`(External)`")
             st.write(f"##### `{curr_acc}` :blue[|] `{curr_wh}`")
             st.write(f"##### `{curr_usr}` :blue[|] `{curr_role}`")
-            if not st.session_state['is_snowflake']:
-                st.write("**`(External)`**")
-            else:
-                st.write("**`(Snowsight)`**")
         with b:
             if not st.session_state['is_snowflake']:
                 if st.button("**:material/logout: Logout**", key="logout_btn"):
@@ -539,10 +542,12 @@ if st.session_state['logged_in']:
 else:
     # Show login form if not in Snowflake and not logged in
     if not st.session_state['is_snowflake']:
+        with st.container():
+            st.markdown("<span style='position: absolute; top: 8%; left: 10%;'>**`(External)`**</span>", unsafe_allow_html=True)
         login_ui.show_login_form()
         #st.rerun()  # Force page refresh to show main UI
     else:
         # This shouldn't happen, but just in case
         st.error("Unexpected state: Running in Snowflake but not logged in.")
-
+        
 # streamlit run Projects/Streamlit/SF_DDL_Extractor/app.py

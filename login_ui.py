@@ -64,7 +64,6 @@ def handle_login():
             st.session_state['is_loading'] = False
 
 def show_login_form():
-    st.write("**`(External)`**")
     l, c, r = st.columns([1, 5, 1])
     with c:
         # CSS for blurring the UI
