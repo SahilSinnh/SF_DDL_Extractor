@@ -24,7 +24,7 @@ The app supports both in-browser (external) and Snowsight-integrated (Snowflake-
 
 1. **Clone the Repository**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/SahilSinnh/sf-ddl-extractor-streamlit.git
    cd sf-ddl-extractor-streamlit
    ```
 
