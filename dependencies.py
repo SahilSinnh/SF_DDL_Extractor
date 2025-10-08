@@ -1,31 +1,16 @@
-"""
-Contains the topological sort implementation to order database objects
-based on their dependencies.
-"""
+# Contains the topological sort implementation to order database objects based on their dependencies.
+
 import re
 from collections import defaultdict, deque
 from typing import List, Dict, Set, Any, Optional, Tuple
 
 
 def order_objects_by_dependencies(objects: List[Dict]) -> Tuple[List[Dict], Dict[str, Set[str]]]:
-    """
-    Topologically sorts a list of Snowflake objects and returns the dependency graph.
-
-    This function implements Kahn's algorithm for topological sorting.
-
-    Args:
-        objects: A list of object dictionaries, each expected to contain
-                 keys like 'object_type', 'database', 'schema', 'object_name',
-                 and 'ddl'.
-
-    Returns:
-        A tuple containing:
-        - A new list of the same objects, sorted in a deployment-safe order (including internal fields).
-        - A dictionary representing the dependency graph (FQN -> set of dependency FQNs).
-    """
+    # Topologically sorts a list of Snowflake objects and returns the dependency graph.
+    # This function implements Kahn's algorithm for topological sorting.
     
     def u(x: Optional[str]) -> Optional[str]:
-        """Helper to normalize an identifier to uppercase and remove quotes."""
+        # Helper to normalize an identifier to uppercase and remove quotes.
         if x is None: return None
         x = x.strip()
         if len(x) >= 2 and x[0] == x[-1] == '"':
@@ -33,7 +18,7 @@ def order_objects_by_dependencies(objects: List[Dict]) -> Tuple[List[Dict], Dict
         return x.upper()
 
     def canon_fqn(db: Optional[str], sch: Optional[str], obj: Optional[str]) -> Optional[str]:
-        """Creates a canonical, fully-qualified name string."""
+        # Creates a canonical, fully-qualified name string.
         db_u, sch_u, obj_u = u(db), u(sch), u(obj)
         if db_u and sch_u and obj_u: return f"{db_u}.{sch_u}.{obj_u}"
         if sch_u and obj_u: return f"{sch_u}.{obj_u}"

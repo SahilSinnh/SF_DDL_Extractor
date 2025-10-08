@@ -1,14 +1,11 @@
-"""
-Contains functions for visualizing the dependency graph.
-"""
+# Contains functions for visualizing the dependency graph.
+
 import streamlit as st
 from pyvis.network import Network
 from typing import Dict, Set, List, Any
 
 def create_dependency_graph_figure(objects: List[Dict[str, Any]], deps: Dict[str, Set[str]], selected_schemas: List[str]):
-    """
-    Generates an interactive dependency graph using pyvis.
-    """
+    # Generates an interactive dependency graph using pyvis.
     net = Network(height="750px", width="100%", bgcolor="#222222", font_color="white", notebook=True, cdn_resources='in_line', directed=True) #type: ignore
 
     # Create a set of canonical FQNs for all objects for quick lookups

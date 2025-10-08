@@ -64,6 +64,7 @@ def handle_login():
             st.session_state['is_loading'] = False
 
 def show_login_form():
+    st.write("**`(External)`**")
     l, c, r = st.columns([1, 5, 1])
     with c:
         # CSS for blurring the UI
@@ -84,24 +85,24 @@ def show_login_form():
         container_class = "blur" if st.session_state['is_loading'] else ""
         with st.container():
             st.markdown(f'<div class="{container_class}">', unsafe_allow_html=True)
-            st.title("Login to Snowflake")
-            st.text_input("Account Identifier", key='account', help="Enter your Snowflake account identifier. This can be your organization-account name (e.g., myorg-myaccount) or a legacy account locator (e.g., xy12345). Do not include '.snowflakecomputing.com'.")
-            auth_method = st.selectbox("Authentication Method", ['Basic', 'Key-Based', 'Single Sign-On (SSO)'], key='auth_method', help="Choose your preferred authentication method. Below options will adjust based on your selection.")
-            st.text_input("User Login Name", key='user', help="Enter your Snowflake user login name.")
-
+            st.title(":violet[Login to Snowflake]")
+            st.text_input(":blue[Account Identifier]", key='account', help="Enter your Snowflake account identifier. This can be your organization-account name (e.g., myorg-myaccount) or a legacy account locator (e.g., xy12345). Do not include '.snowflakecomputing.com'.")
+            auth_method = st.selectbox(":blue[Authentication Method]", ['Basic', 'Key-Based', 'Single Sign-On (SSO)'], key='auth_method', help="Choose your preferred authentication method. Below options will adjust based on your selection.")
+            st.text_input(":blue[User Login Name]", key='user', help="Enter your Snowflake user login name.")
+            
             if auth_method == 'Basic':
-                st.text_input("Password", type='password', key='password', help="Enter your Snowflake password.")
+                st.text_input(":blue[Password]", type='password', key='password', help="Enter your Snowflake password.")
             elif auth_method == 'Key-Based':
-                key_option = st.radio("Key Input Method", ['Key Content', 'Key File'], key='key_option', horizontal=True)
+                key_option = st.radio(":blue[Key Input Method]", ['Key Content', 'Key File'], key='key_option', horizontal=True)
                 if key_option == 'Key Content':
-                    st.text_area("Private Key Content (PEM format)", key='key_content', help="Paste your private key in PEM format here.")
+                    st.text_area(":blue[Private Key Content (PEM format)]", key='key_content', help="Paste your private key in PEM format here.")
                 else:
-                    st.file_uploader("Upload Private Key File", type=['pem'], key='key_file', help="Upload your private key file in PEM format here.")
+                    st.file_uploader(":blue[Upload Private Key File]", type=['pem'], key='key_file', help="Upload your private key file in PEM format here.")
             # No additional fields for SSO
 
-            st.text_input("Warehouse", key='warehouse', help="Enter your preferred Snowflake warehouse name.")
-            st.text_input("Role Name", key='role', help="Enter your preferred Snowflake role name.")
+            st.text_input(":blue[Warehouse]", key='warehouse', help="Enter your preferred Snowflake warehouse name.")
+            st.text_input(":blue[Role Name]", key='role', help="Enter your preferred Snowflake role name.")
 
             button_text = "Login with SSO" if auth_method == 'Single Sign-On (SSO)' else "Login"
-            st.button(button_text, on_click=handle_login, disabled=st.session_state['is_loading'], use_container_width=True)
+            st.button(f":green[:material/login: {button_text}]", on_click=handle_login, disabled=st.session_state['is_loading'], use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)

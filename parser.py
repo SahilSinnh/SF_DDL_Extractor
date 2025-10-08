@@ -1,12 +1,10 @@
-"""
-Contains all the sophisticated logic for parsing raw DDL text into
-structured Python objects.
-"""
+# Contains all the sophisticated logic for parsing raw DDL text into structured Python objects.
+
 import re
 from typing import List, Dict, Optional
 
 def strip_identifier_quotes(ident: Optional[str]) -> str:
-    """Removes surrounding double quotes from a SQL identifier and un-escapes internal quotes."""
+    # Removes surrounding double quotes from a SQL identifier and un-escapes internal quotes.
     if not ident:
         return ""
     ident = ident.strip()
@@ -15,7 +13,7 @@ def strip_identifier_quotes(ident: Optional[str]) -> str:
     return ident
 
 def normalize_type(prefix: Optional[str], base_type: str) -> str:
-    """Combines a prefix and base type into a canonical object type name."""
+    # Combines a prefix and base type into a canonical object type name.
     bt = re.sub(r"\s+", " ", base_type.strip().upper())
     px = (prefix or "").strip().upper()
     if px == "MATERIALIZED" and bt == "VIEW":
@@ -25,10 +23,9 @@ def normalize_type(prefix: Optional[str], base_type: str) -> str:
     return bt
 
 def split_qualified_name(name: str) -> List[str]:
-    """
-    Splits a dot-separated qualified name, correctly handling quoted identifiers.
-    Example: '"DB"."SCH"."TBL"' -> ['"DB"', '"SCH"', '"TBL"']
-    """
+    # Splits a dot-separated qualified name, correctly handling quoted identifiers.
+    # Example: '"DB"."SCH"."TBL"' -> ['"DB"', '"SCH"', '"TBL"']
+
     parts, buf, in_dq, i = [], [], False, 0
     while i < len(name):
         ch = name[i]
@@ -53,10 +50,7 @@ def split_qualified_name(name: str) -> List[str]:
     return [p for p in parts if p]
 
 def split_sql_statements(ddl_text: str) -> List[str]:
-    """
-    Splits a block of SQL text into individual statements, correctly handling
-    comments, strings, and procedure bodies.
-    """
+    # Splits a block of SQL text into individual statements, correctly handling comments, strings, and procedure bodies.
     stmts, buf, s = [], [], ddl_text
     n = len(s); i = 0
     in_sq = in_dq = in_dollar = in_line_c = in_block_c = False
@@ -109,9 +103,7 @@ def split_sql_statements(ddl_text: str) -> List[str]:
     return stmts
 
 def extract_object_metadata(stmt: str) -> Optional[Dict[str, str]]:
-    """
-    Parses a CREATE statement to extract its type, name, and components.
-    """
+    # Parses a CREATE statement to extract its type, name, and components.
     # Regex to capture CREATE [MODIFIERS] [PREFIX] TYPE <name> ...
     pattern = re.compile(r"""
         ^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:SECURE\s+|TRANSIENT\s+|TEMPORARY\s+|EXTERNAL\s+)*
@@ -145,11 +137,8 @@ def extract_object_metadata(stmt: str) -> Optional[Dict[str, str]]:
     }
 
 def remove_database_references(ddl: str, db_name: str) -> str:
-    """
-    Removes references to a specific database in a DDL statement,
-    if the reference matches the provided db_name.
-    Handles various quoting styles and avoids replacement in string literals.
-    """
+    # Removes references to a specific database in the create line of a DDL statement, if the reference matches the provided db_name.
+    # Handles various quoting styles and avoids replacement in string literals.
     if not db_name:
         return ddl
 
@@ -182,11 +171,7 @@ def remove_database_references(ddl: str, db_name: str) -> str:
     return "'".join(result)
 
 def get_material_icon(obj_type: Optional[str]) -> str:
-    """
-    Returns a Material icon name string for a given Snowflake object type.
-    Falls back to 'help_outline' for unknown or None values.
-    """
-
+    # Returns a Material icon name string for a given Snowflake object type.
     if not obj_type:
         return "help_outline"
 
@@ -217,7 +202,7 @@ def get_material_icon(obj_type: Optional[str]) -> str:
 
 # Helper function to build snippet for a block
 def build_block_snippet(block, obj_ddl_lines, final_script_lines):
-    """Build formatted snippet for a block of lines."""
+    # Build formatted snippet for a block of lines.
     lines = []
     for k, is_match, final_k in block:  # Sort by k (line in DDL)
         content = obj_ddl_lines[k].strip()

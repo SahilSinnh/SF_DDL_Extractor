@@ -1,16 +1,13 @@
-"""
-Handles all direct interactions with Snowflake, such as fetching
-database lists and retrieving DDLs.
-"""
+# Handles all direct interactions with Snowflake, such as fetching database lists and retrieving DDLs.
+
 import streamlit as st
 from typing import List, Tuple, Optional
 
-@st.cache_data(show_spinner="Listing databases...", ttl=300)
+@st.cache_data(show_spinner="Listing databases...", ttl=900)
 def list_databases() -> List[str]:
-    """
-    Fetches a list of all databases the current role has access to.
-    Caches the result for 5 minutes.
-    """
+    # Fetches a list of all databases the current role has access to.
+    # Caches the result for 15 minutes.
+
     session = st.session_state.get('snowflake_session')
     if not session:
         st.error("No active Snowflake session. Cannot list databases.")
@@ -26,16 +23,7 @@ def list_databases() -> List[str]:
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_database_ddl(db_name: str) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Fetches the DDL for an entire database and its stages.
-
-    Args:
-        db_name: The name of the database.
-
-    Returns:
-        A tuple containing (all_object_ddls, stage_ddls).
-        Returns (None, None) on failure.
-    """
+    # Fetches the DDL for an entire database and its stages.
     session = st.session_state.get('snowflake_session')
     if not session:
         st.error(f"No active Snowflake session. Cannot fetch DDL for {db_name}.")

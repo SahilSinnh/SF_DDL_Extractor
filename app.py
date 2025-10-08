@@ -1,9 +1,7 @@
-"""
-The main Streamlit application file.
-This file orchestrates the UI, state management, and calls to the
-backend modules for parsing and data fetching.
-"""
+# The main Streamlit application file.
+# Imports
 import streamlit as st
+from datetime import datetime
 from collections import defaultdict
 from typing import Dict, Any, Optional
 
@@ -17,24 +15,27 @@ import login_ui
 import streamlit.components.v1 as components
 
 
-# Initialize session state for Snowflake session and login
-if 'is_snowflake' not in st.session_state:
-    try:
-        from snowflake.snowpark.context import get_active_session
-        st.session_state['snowflake_session'] = get_active_session()
-        st.session_state['is_snowflake'] = True
-    except:
-        st.session_state['is_snowflake'] = False
+# Initialize session state and parameters for Snowflake session and login
 
-if 'logged_in' not in st.session_state:
-    st.session_state['logged_in'] = st.session_state.get('is_snowflake', False)
+st.query_params["sf"] = "None" if "sf" not in st.query_params else st.query_params["sf"]
 
+try:
+    from snowflake.snowpark.context import get_active_session
+    st.session_state['snowflake_session'] = get_active_session()
+    st.session_state['logged_in'] = True
+    if st.query_params["sf"] == "None" or st.query_params["sf"] == "True":
+        st.query_params["sf"] = "True"
+except:
+    st.session_state['logged_in'] = False
+    st.query_params["sf"] = "False"
+    
+st.session_state['is_snowflake'] = st.query_params["sf"] == "True"
 
 # -----------------------------
 # STATE MANAGEMENT HELPERS
 # -----------------------------
 def init_session_state():
-    """Initialize session state keys if they don't exist."""
+    # Initialize session state keys if they don't exist.
     if "db_selected" not in st.session_state:
         st.session_state.db_selected = None
     if "objects" not in st.session_state:
@@ -55,7 +56,7 @@ def init_session_state():
         st.session_state.selected_schemas = []
 
 def reset_app_state():
-    """Reset application-specific session state while preserving login-related state."""
+    # Reset application-specific session state while preserving login-related state.
     login_keys = {'snowflake_session', 'logged_in', 'is_snowflake', 'is_loading',
                   'account', 'user', 'auth_method', 'warehouse', 'role',
                   'password', 'key_option', 'key_content', 'key_file'}
@@ -64,81 +65,117 @@ def reset_app_state():
         del st.session_state[key]
 
 def sync_checkbox_state(db_key):
-    """
-    Manages the bi-directional synchronization of hierarchical checkboxes.
-    This function uses a "compare with previous state" method to avoid callbacks.
-    """
+    
+    # Manages the bi-directional synchronization of hierarchical checkboxes.
+    # This function uses a "compare with previous state" method to avoid callbacks.
+    
     if not st.session_state.objects:
         return
 
-    # Create keys for all items
     obj_keys = {o['obj_key'] for o in st.session_state.objects}
     sch_keys = {o['sch_key'] for o in st.session_state.objects}
     
-    # Initialize previous state trackers if they don't exist
-    if f"__prev__" + db_key not in st.session_state:
-        st.session_state[f"__prev__" + db_key] = st.session_state.get(db_key, False)
-    for sk in sch_keys:
-        if f"__prev__" + sk not in st.session_state:
-            st.session_state[f"__prev__" + sk] = st.session_state.get(sk, False)
+    # Determine the source of the change by comparing current and previous states
+    source_key = None
+    source_value = None
 
-    # --- Parent -> Child Sync ---
-    # 1. Global (Database) checkbox change
-    prev_global = st.session_state[f"__prev__" + db_key]
+    # Check global checkbox
+    prev_global = st.session_state.get(f"__prev__{db_key}", False)
     cur_global = st.session_state.get(db_key, False)
     if cur_global != prev_global:
-        for ok in obj_keys:
-            st.session_state[ok] = cur_global
+        source_key = db_key
+        source_value = cur_global
+    
+    # Check schema checkboxes if global wasn't the source
+    if not source_key:
+        for sk in sch_keys:
+            prev_group = st.session_state.get(f"__prev__{sk}", False)
+            cur_group = st.session_state.get(sk, False)
+            if cur_group != prev_group:
+                source_key = sk
+                source_value = cur_group
+                break # Found the source, stop searching
 
-    # 2. Group (Schema) checkbox changes
-    for sk in sch_keys:
-        prev_group = st.session_state[f"__prev__" + sk]
-        cur_group = st.session_state.get(sk, False)
-        if cur_group != prev_group:
-            # Find all objects belonging to this schema
-            child_keys = [o['obj_key'] for o in st.session_state.objects if o['sch_key'] == sk]
-            for ck in child_keys:
-                st.session_state[ck] = cur_group
+    # --- Propagate Changes ---
 
-    # --- Child -> Parent Sync ---
-    # Always re-calculate parent states based on children
+    # If a parent was the source, propagate the change downwards to children
+    if source_key == db_key:
+        # Global checkbox was clicked, push its state down to all objects in selected schemas
+        selected_schemas = [s for s, selected in st.session_state.get('schema_selection', {}).items() if selected]
+        keys_to_update = {o['obj_key'] for o in st.session_state.objects if o.get('schema', 'N/A') in selected_schemas}
+        for ok in keys_to_update:
+            st.session_state[ok] = source_value
+    
+    elif source_key in sch_keys:
+        # A schema checkbox was clicked, push its state down to its direct children
+        child_keys = [o['obj_key'] for o in st.session_state.objects if o['sch_key'] == source_key]
+        for ck in child_keys:
+            st.session_state[ck] = source_value
+
+    # --- Synchronize Upwards ---
+    # Always recalculate parent states based on children states.
+    # This ensures consistency after a child is clicked, or confirms the state after a parent is clicked.
     for sk in sch_keys:
         child_keys = [o['obj_key'] for o in st.session_state.objects if o['sch_key'] == sk]
         if child_keys:
             st.session_state[sk] = all(st.session_state.get(k, False) for k in child_keys)
 
-    if obj_keys:
-        st.session_state[db_key] = all(st.session_state.get(k, False) for k in obj_keys)
-    
-    # --- Update previous state trackers for the next run ---
-    st.session_state[f"__prev__" + db_key] = st.session_state.get(db_key, False)
+    # Recalculate global checkbox state based on all objects in selected schemas
+    selected_schemas = [s for s, selected in st.session_state.get('schema_selection', {}).items() if selected]
+    keys_for_global_check = {o['obj_key'] for o in st.session_state.objects if o.get('schema', 'N/A') in selected_schemas}
+    if keys_for_global_check:
+        st.session_state[db_key] = all(st.session_state.get(k, False) for k in keys_for_global_check)
+    else:
+        st.session_state[db_key] = False
+
+    # --- Update Previous State ---
+    # Finally, update the '__prev__' state for the next rerun with the now-finalized values
+    st.session_state[f"__prev__{db_key}"] = st.session_state.get(db_key, False)
     for sk in sch_keys:
-        st.session_state[f"__prev__" + sk] = st.session_state.get(sk, False)
-        
+        st.session_state[f"__prev__{sk}"] = st.session_state.get(sk, False)
+
 # -----------------------------
 # MAIN APP LOGIC
 # -----------------------------
+st.set_page_config(
+    page_title="Snowflake DDL Extractor",
+    page_icon=":material/ac_unit:",
+    initial_sidebar_state="expanded"
+)
+
 if st.session_state['logged_in']:
     init_session_state()
     
-    st.set_page_config(
-        page_title="Snowflake DDL Extractor",
-        page_icon=":material/ac_unit:",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-
     # Sync checkbox state before rendering the rest of the UI
     if st.session_state.db_selected and st.session_state.db_selected != "— Select a database —":
         db_key = f"DB|" + st.session_state.db_selected
         sync_checkbox_state(db_key)
-
+        
     # --- Sidebar for Selections ---
     with st.sidebar:
-        st.header("Selections")
+        curr_acc = st.session_state['snowflake_session'].get_current_account().replace('"','').upper()
+        curr_wh = st.session_state['snowflake_session'].get_current_warehouse().replace('"','')
+        curr_usr = st.session_state['snowflake_session'].get_current_user().replace('"','')
+        curr_role = st.session_state['snowflake_session'].get_current_role().replace('"','')
+        a, b = st.columns([2,1])
+        with a:
+            st.write(f"##### `{curr_acc}` :blue[|] `{curr_wh}`")
+            st.write(f"##### `{curr_usr}` :blue[|] `{curr_role}`")
+            if not st.session_state['is_snowflake']:
+                st.write("**`(External)`**")
+            else:
+                st.write("**`(Snowsight)`**")
+        with b:
+            if not st.session_state['is_snowflake']:
+                if st.button("**:material/logout: Logout**", key="logout_btn"):
+                    with st.spinner(f"Logging out..."):
+                        st.session_state['snowflake_session'].close()
+                        st.session_state.clear()
+                        st.rerun()
+                        
         db_options = ["— Select a database —"] + sf.list_databases()
         selected_db = st.selectbox(
-            f"**{parser.get_material_icon('DATABASE')} Database**",
+            f":orange[**{parser.get_material_icon('DATABASE')} Database**]",
             db_options,
             index=0,
             key='db_selector'
@@ -204,7 +241,7 @@ if st.session_state['logged_in']:
 
             # --- Schema Selection in Sidebar ---
             if st.session_state.objects:
-                st.markdown(f"**{parser.get_material_icon('SCHEMA')} Select Schemas**")
+                st.markdown(f":orange[**{parser.get_material_icon('SCHEMA')} Select Schemas**]")
                 all_schemas = sorted(st.session_state.grouped_objects.keys())
 
                 # Initialize or update schema selection state
@@ -370,7 +407,7 @@ if st.session_state['logged_in']:
                             db_ref_warnings.append(warning_info)
                 
                     if db_ref_warnings:
-                        st.warning(f"**Database Reference Warning:** The script contains hardcoded references to the '{db_name}' database. This may cause issues when deploying to other environments.", icon="⚠️")
+                        st.warning(f"**Database Reference Warning:** The script contains hardcoded references to the '{db_name}' database. This may cause issues when deploying to other environments.", icon=":material/warning:")
                         with st.expander("Click to see details"):
                             for warning in db_ref_warnings:
                                 num_matches = len(warning['matches'])
@@ -387,9 +424,9 @@ if st.session_state['logged_in']:
                         line_numbers=True
                     )
 
-                    file_name = f"{st.session_state.db_selected}_DDL_Export.sql"
+                    file_name = f"{st.session_state.db_selected}_DDL_Export_{datetime.now().strftime('%Y%m%d%H%M%S')}.sql"
                     if st.download_button(
-                        label=":material/download_2: Download .sql File",
+                        label=":blue[:material/download_2: Download .sql File]",
                         data=st.session_state.final_script_output,
                         file_name=file_name,
                         mime="text/plain",
@@ -402,15 +439,15 @@ if st.session_state['logged_in']:
 
     # --- Main Area for Object Display ---
     
-    st.title(f":material/ac_unit: Snowflake DDL Extractor {st.__version__}")
-    st.markdown("A tool to extract, parse, and re-order object DDLs from a Snowflake database.")
+    st.title(f":violet[:material/ac_unit: Snowflake DDL Extractor {st.__version__}]")
+    st.markdown(":violet[**A tool to extract, parse, and download object DDLs from a Snowflake database.**]")
 
     if st.session_state.db_selected and st.session_state.db_selected != "— Select a database —":
         if st.session_state.objects:
             # --- Dialog Definition ---
-            @st.dialog("Dependency Graph", width="large")
+            @st.dialog(":rainbow[:material/graph_4: Dependency Graph]", width="large")
             def dependency_graph_dialog():
-                st.info("Showing dependencies for the schemas selected in the sidebar.")
+                st.info(f"Showing dependencies among schemas - **{st.session_state.selected_schemas}** in database **{st.session_state.db_selected}**.")
                 if not st.session_state.selected_schemas:
                     st.warning("No schemas selected. Please select at least one schema from the sidebar to see the graph.")
                 else:
@@ -427,11 +464,11 @@ if st.session_state['logged_in']:
                     st.rerun()
 
             # --- Header with Visualize Button ---
-            col1, col2 = st.columns([3, 1])
+            col1, col2 = st.columns([3, 2])
             with col1:
-                st.markdown(f"### :material/data_table: Objects in **{st.session_state.db_selected}**")
+                st.markdown(f"### :orange[:material/data_table: Objects in **{st.session_state.db_selected}**]")
             with col2:
-                if st.button(":material/graph_4: Dependency Graph", use_container_width=True, help="Show the dependency graph for the selected schemas"):
+                if st.button(":rainbow[:material/graph_4: Dependency Graph]", use_container_width=True, help="Show the dependency graph for database objects."):
                     dependency_graph_dialog()
 
             # --- Global Expand/Collapse Toggle ---
@@ -439,7 +476,7 @@ if st.session_state['logged_in']:
                 st.session_state.expand_all_toggle = None # None means use default states
 
             c1, c2, c3 = st.columns(3)
-            if c3.button("Expand/Collapse All", type="tertiary", use_container_width=True):
+            if c3.button("Expand/Collapse All", type="tertiary", use_container_width=True, help="Expand/Collapse all schema and object type sections."):
                 # If currently in a mixed state or all collapsed, expand all. Otherwise, collapse all.
                 if st.session_state.expand_all_toggle is not True:
                     st.session_state.expand_all_toggle = True
@@ -448,10 +485,10 @@ if st.session_state['logged_in']:
 
 
             with c1:
-                st.text_input("Search objects by name", key="search_query", placeholder="e.g., my_table, customers, ...")
+                st.text_input("Search objects by name", key="search_query", placeholder="e.g., my_table, my_view, ...")
             with c2:
                 st.checkbox(f"**Select all objects in {st.session_state.db_selected}**", key=f"DB|" + st.session_state.db_selected, help="Toggles every object in the database.")
-
+                
             search_term = st.session_state.search_query.lower()
 
             # Define the custom sort order for object types
@@ -459,18 +496,15 @@ if st.session_state['logged_in']:
             bottom_order = ['FILE FORMAT', 'STAGE', 'EXTERNAL TABLE', 'PIPE']
 
             def get_type_sort_key(obj_type: str) -> tuple[int, Any]:
-                """
-                Assigns a sort key to an object type for custom ordering.
-                """
+                # Assigns a sort key to an object type for custom ordering.
                 if obj_type in top_order: return (0, str(top_order.index(obj_type)).zfill(2))
                 if obj_type in bottom_order: return (2, str(bottom_order.index(obj_type)).zfill(2))
                 return (1, obj_type)
-
-
+            
             # --- Display Objects ---
             if not st.session_state.selected_schemas:
                 st.warning("Select one or more schemas from the sidebar to see the objects.")
-
+                
             for schema in st.session_state.selected_schemas:
                 types_dict = st.session_state.grouped_objects.get(schema, {})
 
@@ -487,7 +521,7 @@ if st.session_state['logged_in']:
                 # Determine schema expander state
                 schema_expanded = True if st.session_state.expand_all_toggle is None else st.session_state.expand_all_toggle
 
-                with st.expander(f"Schema: **{schema}** ({schema_object_count} objects)", expanded=schema_expanded):
+                with st.expander(f":yellow[Schema: **{schema}**] ({schema_object_count} objects)", expanded=schema_expanded):
                     sch_key = f"SCH|" + st.session_state.db_selected + "|" + schema
                     st.checkbox(f"Select all in **{schema}**", key=sch_key, help=f"Toggles all objects in the {schema} schema.")
                     st.markdown("---")
@@ -510,3 +544,5 @@ else:
     else:
         # This shouldn't happen, but just in case
         st.error("Unexpected state: Running in Snowflake but not logged in.")
+
+# streamlit run Projects/Streamlit/SF_DDL_Extractor/app.py
