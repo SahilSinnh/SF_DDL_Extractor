@@ -4,19 +4,14 @@ import streamlit as st
 from datetime import datetime
 from collections import defaultdict
 from typing import Dict, Any, Optional
-
-
-# Import modularized functions
-import snowflake_utils as sf
-import sql_parser
-import dependencies
-import graph_utils
-import login_ui
 import streamlit.components.v1 as components
 
-# By-Line
-with st.container():
-    st.markdown("<span style='position: absolute; top: 8%; right: 10%;'>:gray[Created by] :rainbow[**Sahil Singh**]</span>", unsafe_allow_html=True)
+# Import utils
+import utils.snowflake_utils as sf
+import utils.sql_parser as sql_parser
+import utils.dependencies as dependencies
+import utils.graph_utils as graph_utils
+import utils.login_ui as login_ui
 
 # Initialize session state and parameters for Snowflake session and login
 st.query_params["sf"] = "None" if "sf" not in st.query_params else st.query_params["sf"]
@@ -32,7 +27,6 @@ except:
     st.query_params["sf"] = "False"
     
 st.session_state['is_snowflake'] = st.query_params["sf"] == "True"
-
 
 # -----------------------------
 # STATE MANAGEMENT HELPERS
@@ -145,6 +139,44 @@ st.set_page_config(
     page_icon=":material/ac_unit:",
     initial_sidebar_state="expanded"
 )
+
+footer_css = """
+<style>
+    .main .block-container {
+        padding-bottom: 5rem;
+    }
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: rgba(14, 17, 23, 0.65); /* Semi-transparent background */
+        -webkit-backdrop-filter: blur(10px); /* Frosted glass effect */
+        backdrop-filter: blur(10px); /* Frosted glass effect */
+        color: gray;
+        text-align: right;
+        font-size: 0.9rem;
+        z-index: 9999;
+    }
+    .rainbow-text {
+        background: linear-gradient(to right, #FF4B4B, #FFA500, #FFFF00, #4CAF50, #00BFFF, #4B0082, #EE82EE);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        font-weight: bold;
+    }
+</style>
+"""
+
+footer_html = f"""
+{footer_css}
+<div class="footer">
+    <span style="color: gray;">Created by</span> <span class="rainbow-text">Sahil Singh</span>
+</div>
+"""
+st.markdown(footer_html, unsafe_allow_html=True)
+
+
 
 if st.session_state['logged_in']:
     init_session_state()
@@ -287,7 +319,7 @@ if st.session_state['logged_in']:
                 selected_objects = [o for o in st.session_state.objects if st.session_state.get(o['obj_key'])]
 
                 if not selected_objects:
-                    st.info("Select objects to generate the script.")
+                    st.info("Select objects in the main page to generate the script.")
                 else:
                     st.success(f"{len(selected_objects)} objects selected. Scroll down to download the SQL script.")
 
@@ -522,9 +554,9 @@ if st.session_state['logged_in']:
                 if not schema_object_count: continue
 
                 # Determine schema expander state
-                schema_expanded = True if st.session_state.expand_all_toggle is None else st.session_state.expand_all_toggle
+                schema_expanded = False if st.session_state.expand_all_toggle is None else st.session_state.expand_all_toggle
 
-                with st.expander(f":yellow[Schema: **{schema}**] ({schema_object_count} objects)", expanded=schema_expanded):
+                with st.expander(f"Schema: :red[**{schema}**] ({schema_object_count} objects)", expanded=schema_expanded):
                     sch_key = f"SCH|" + st.session_state.db_selected + "|" + schema
                     st.checkbox(f"Select all in **{schema}**", key=sch_key, help=f"Toggles all objects in the {schema} schema.")
                     st.markdown("---")
@@ -540,14 +572,15 @@ if st.session_state['logged_in']:
     else:
         st.info("Select a database from the dropdown menu in the sidebar to begin.")
 else:
-    # Show login form if not in Snowflake and not logged in
+    # Show login form if not in Snowflake
     if not st.session_state['is_snowflake']:
         with st.container():
             st.markdown("<span style='position: absolute; top: 8%; left: 10%;'>**`(External)`**</span>", unsafe_allow_html=True)
         login_ui.show_login_form()
-        #st.rerun()  # Force page refresh to show main UI
     else:
-        # This shouldn't happen, but just in case
+        # Just in case
         st.error("Unexpected state: Running in Snowflake but not logged in.")
-        
-# streamlit run Projects/Streamlit/sf-ddl-extractor-streamlit/app.py
+
+
+# To run the app, use the command:
+# streamlit run sf-ddl-extractor-streamlit/src/app.py

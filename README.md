@@ -22,14 +22,20 @@ The app supports both in-browser (external) and Snowsight-integrated (Snowflake-
 
 ## Installation
 
-1. **Clone the Repository**:
+1. **Clone the Repository or Download**:
+
+   [sf-ddl-extractor-streamlit](https://github.com/SahilSinnh/sf-ddl-extractor-streamlit.git)
+
    ```bash
    git clone https://github.com/SahilSinnh/sf-ddl-extractor-streamlit.git
+   ```
+   Move to the project folder in terminal
+   ```bash
    cd sf-ddl-extractor-streamlit
    ```
 
 2. **Install Dependencies**:
-   Ensure you have Python 3.9+ installed. Install the required packages in your Python environment:
+   Ensure you have Python 3.11+ installed. Install the required packages in your Python environment:
    ```bash
    pip install -r requirements.txt
    ```
@@ -43,12 +49,12 @@ The app supports both in-browser (external) and Snowsight-integrated (Snowflake-
 
 1. **Run the Application**:
    ```bash
-   streamlit run app.py
+   streamlit run src/app.py
    ```
    - This launches the app in your browser (default: http://localhost:8501).
    - If running in Snowflake Snowsight, the app auto-detects the session and skips manual login.
 
-2. **Login**:
+2. **Login** (External only):
    - If not in Snowsight, enter your Snowflake credentials (account, user, warehouse, role).
    - Choose authentication method: Basic (username/password), Key-Based (PEM key), or SSO (external browser).
 
@@ -75,22 +81,31 @@ The app supports both in-browser (external) and Snowsight-integrated (Snowflake-
 
 ## Screenshots
 
-- Login Screen: ![Login](Screenshots/login-screenshot.png)
-- Object Browser: ![Browser](Screenshots/browser-screenshot.png)
-- Dependency Graph: ![Graph](Screenshots/graph-screenshot.png)
+- Login Screen: ![Login](assets/login-screenshot.png)
+- Object Browser: ![Browser](assets/browser-screenshot.png)
+- Dependency Graph: ![Graph](assets/graph-screenshot.png)
 
 ## Architecture Overview
+<pre>
+<img src="assets/icons/snowflake-logo.svg" width="16" alt=""/> <b>sf-ddl-extractor-streamlit</b> <img src="assets/icons/streamlit-logo.svg" width="16" alt=""/>/
+├── <img src="assets/icons/folder-logo.svg" width="16" alt="[folder]"/> <b>src/</b>
+│   ├── <img src="assets/icons/python-logo.svg" width="16" alt="[python]"/> <b>app.py</b>: <i>Main Streamlit entry point; handles UI, state, and orchestration.</i>
+│   └── <img src="assets/icons/folder-logo.svg" width="16" alt="[folder]"/> <b>utils/</b>
+│       ├── <img src="assets/icons/python-logo.svg" width="16" alt="[python]"/> <b>login_ui.py</b>: <i>Manages login form and authentication logic.</i>
+│       ├── <img src="assets/icons/python-logo.svg" width="16" alt="[python]"/> <b>snowflake_utils.py</b>: <i>Snowflake interactions (e.g., listing databases, fetching DDLs).</i>
+│       ├── <img src="assets/icons/python-logo.svg" width="16" alt="[python]"/> <b>sql_parser.py</b>: <i>Parses DDL text into structured objects, handles quoting and splitting.</i>
+│       ├── <img src="assets/icons/python-logo.svg" width="16" alt="[python]"/> <b>dependencies.py</b>: <i>Implements topological sorting for object dependencies using Kahn's algorithm.</i>
+│       └── <img src="assets/icons/python-logo.svg" width="16" alt="[python]"/> <b>graph_utils.py</b>: <i>Generates interactive dependency graphs with PyVis.</i>
+├── <img src="assets/icons/folder-logo.svg" width="16" alt="[folder]"/> <b>assets/</b>
+│   └── <img src="assets/icons/folder-logo.svg" width="16" alt="[folder]"/> <b>icons/</b> : <i>SVG icons for different objects, to be used in visualization graph.</i>
+│       └── <img src="assets/icons/svg-logo.svg" width="16" alt="[SVG]"/><b>...</b>
+├── <img src="assets/icons/txt-logo.svg" width="16" alt="[text]"/> <b>requirements.txt</b>: <i>Python dependencies.</i>
+├── <img src="assets/icons/yaml-logo.svg" width="16" alt="[yaml]"/> <b>environment.yml</b>: <i>Dependencies for Snowflake's Streamlit environment [Used for publishing in Snowflake].</i>
+├── <img src="assets/icons/git-logo.svg" width="16" alt="[text]"/> <b>.gitignore</b>: <i>Standard ignores for Python/Streamlit project.</i>
+├── <img src="assets/icons/readme-logo.svg" width="16" alt="[markdown]"/> <b>README.md</b>: <i>Standard README file with description, setup, usage, and architecture of project.</i>
+└── <img src="assets/icons/MIT-logo.svg" width="16" alt="[MIT]"/> <b>LICENSE</b>: <i>A permissive open-source MIT license for the code.</i>
+</pre>
 
-- **app.py**: Main Streamlit entry point; handles UI, state, and orchestration.
-- **login_ui.py**: Manages login form and authentication logic.
-- **snowflake_utils.py**: Snowflake interactions (e.g., listing databases, fetching DDLs).
-- **sql_parser.py**: Parses DDL text into structured objects, handles quoting and splitting.
-- **dependencies.py**: Implements topological sorting for object dependencies using Kahn's algorithm.
-- **graph_utils.py**: Generates interactive dependency graphs with PyVis.
-- **requirements.txt**: Python dependencies.
-- **.gitignore**: Standard ignores for Python/Streamlit projects.
-- **README.md**: Standard README file with description, setup, usage, and architecture of project.
-- **LICENSE**: A permissive open-source MIT license for the code.
 
 The app uses Snowflake's Snowpark for queries and maintains session state for efficiency.
 

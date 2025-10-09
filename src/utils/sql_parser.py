@@ -53,8 +53,9 @@ def split_sql_statements(ddl_text: str) -> List[str]:
     # Splits a block of SQL text into individual statements, correctly handling comments, strings, and procedure bodies.
     stmts, buf, s = [], [], ddl_text
     n = len(s); i = 0
-    in_sq = in_dq = in_dollar = in_line_c = in_block_c = False
-    
+    in_sq = in_dq = in_line_c = in_block_c = False
+    dollar_tag = None
+
     while i < n:
         # State machine to handle different SQL contexts
         if in_line_c:
@@ -77,9 +78,13 @@ def split_sql_statements(ddl_text: str) -> List[str]:
                 if i + 1 < n and s[i+1] == '"': buf.append('"'); i += 2; continue
                 in_dq = False
             i += 1; continue
-        if in_dollar:
-            if i + 1 < n and s[i] == '$' and s[i+1] == '$':
-                buf.append('$$'); i += 2; in_dollar = False; continue
+        if dollar_tag is not None:
+            end_tag = f'${dollar_tag}$'
+            if s.startswith(end_tag, i):
+                buf.append(end_tag)
+                i += len(end_tag)
+                dollar_tag = None
+                continue
             buf.append(s[i]); i += 1; continue
 
         # Not in any special context, check for context entry or semicolon
@@ -87,8 +92,24 @@ def split_sql_statements(ddl_text: str) -> List[str]:
         if i + 1 < n and s[i] == '/' and s[i+1] == '*': buf.append('/*'); i += 2; in_block_c = True; continue
         if s[i] == "'": in_sq = True; buf.append(s[i]); i += 1; continue
         if s[i] == '"': in_dq = True; buf.append(s[i]); i += 1; continue
-        if i + 1 < n and s[i] == '$' and s[i+1] == '$': in_dollar = True; buf.append('$$'); i += 2; continue
         
+        # Check for dollar-quoted string start
+        if s[i] == '$':
+            # Try to match a tag: $tag$
+            match = re.match(r'\$([a-zA-Z_][a-zA-Z0-9_]*)\$', s[i:])
+            if match:
+                dollar_tag = match.group(1)
+                start_tag = f'${dollar_tag}$'
+                buf.append(start_tag)
+                i += len(start_tag)
+                continue
+            # Check for empty tag: $$
+            elif i + 1 < n and s[i+1] == '$':
+                dollar_tag = ""
+                buf.append('$$')
+                i += 2
+                continue
+
         if s[i] == ';':
             stmt = ''.join(buf).strip()
             if stmt: stmts.append(stmt)
