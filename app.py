@@ -461,7 +461,7 @@ if st.session_state['logged_in']:
                             st.session_state.selected_schemas
                         )
                         if html_content:
-                            components.html(html_content, height=800)
+                            components.html(html_content, height=800, width=1500)
 
                 if st.button("Close", key="close_graph_dialog"):
                     st.rerun()
@@ -550,4 +550,4 @@ else:
         # This shouldn't happen, but just in case
         st.error("Unexpected state: Running in Snowflake but not logged in.")
         
-# streamlit run Projects/Streamlit/SF_DDL_Extractor/app.py
+# streamlit run Projects/Streamlit/sf-ddl-extractor-streamlit/app.py

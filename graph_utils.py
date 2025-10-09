@@ -3,13 +3,36 @@
 import streamlit as st
 from pyvis.network import Network
 from typing import Dict, Set, List, Any
+import base64
+import os
+
+def get_icon_data_uri(icon_filename: str) -> str:
+    #Reads an icon file, encodes it in base64, and returns a data URI.
+    
+    # Get the absolute path to the directory of the current script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Construct the full path to the icon file
+    icon_path = os.path.join(script_dir, "graph-icons", icon_filename)
+    
+    try:
+        with open(icon_path, "rb") as f:
+            icon_svg = f.read()
+        
+        # Encode the SVG content in base64
+        encoded_svg = base64.b64encode(icon_svg).decode("utf-8")
+        
+        # Return the data URI
+        return f"data:image/svg+xml;base64,{encoded_svg}"
+        
+    except FileNotFoundError:
+        # Fallback to CDN for missing icons
+        return f"https://cdn.jsdelivr.net/npm/@mdi/svg/svg/{icon_filename}"
+
 
 def create_dependency_graph_figure(objects: List[Dict[str, Any]], deps: Dict[str, Set[str]], selected_schemas: List[str]):
     # Generates an interactive dependency graph using pyvis.
     net = Network(height="750px", width="100%", bgcolor="#222222", font_color="white", notebook=True, cdn_resources='in_line', directed=True) #type: ignore
-
-    # Create a set of canonical FQNs for all objects for quick lookups
-    all_fqns = {obj["_CANON_FQN"] for obj in objects if obj.get("_CANON_FQN")}
 
     # Filter objects based on selected schemas
     selected_nodes = {
@@ -45,28 +68,27 @@ def create_dependency_graph_figure(objects: List[Dict[str, Any]], deps: Dict[str
                 "TAG": "#E91E63",
             }.get(obj_type, "#90A4AE")
             
-            # Map object types to Material Design Icon URLs
-            icon_url_base = "https://cdn.jsdelivr.net/npm/@mdi/svg/svg/"
+            # Map object types to local icon files and create data URIs
             icon_map = {
-                "DATABASE": f"{icon_url_base}database.svg",
-                "SCHEMA": f"{icon_url_base}layers.svg",
-                "SEQUENCE": f"{icon_url_base}pound.svg",
-                "TABLE": f"{icon_url_base}table.svg",
-                "DYNAMIC TABLE": f"{icon_url_base}table-refresh.svg",
-                "VIEW": f"{icon_url_base}table-eye.svg",
-                "STAGE": f"{icon_url_base}cloud-upload.svg",
-                "EXTERNAL TABLE": f"{icon_url_base}table-network.svg",
-                "FILE FORMAT": f"{icon_url_base}file-cog.svg",
-                "PROCEDURE": f"{icon_url_base}script-text.svg",
-                "FUNCTION": f"{icon_url_base}function-variant.svg",
-                "PIPE": f"{icon_url_base}pipe.svg",
-                "MATERIALIZED VIEW": f"{icon_url_base}table-star.svg",
-                "STREAM": f"{icon_url_base}view-stream.svg",
-                "TASK": f"{icon_url_base}clipboard-check.svg",
-                "MASKING POLICY": f"{icon_url_base}shield-half-full.svg",
-                "TAG": f"{icon_url_base}tag-multiple.svg",
+                "DATABASE": get_icon_data_uri("database.svg"),
+                "SCHEMA": get_icon_data_uri("layers.svg"),
+                "SEQUENCE": get_icon_data_uri("pound.svg"),
+                "TABLE": get_icon_data_uri("table.svg"),
+                "DYNAMIC TABLE": get_icon_data_uri("table-refresh.svg"),
+                "VIEW": get_icon_data_uri("table-eye.svg"),
+                "STAGE": get_icon_data_uri("cloud-upload.svg"),
+                "EXTERNAL TABLE": get_icon_data_uri("table-network.svg"),
+                "FILE FORMAT": get_icon_data_uri("file-cog.svg"),
+                "PROCEDURE": get_icon_data_uri("script-text.svg"),
+                "FUNCTION": get_icon_data_uri("function-variant.svg"),
+                "PIPE": get_icon_data_uri("pipe.svg"),
+                "MATERIALIZED VIEW": get_icon_data_uri("table-star.svg"),
+                "STREAM": get_icon_data_uri("view-stream.svg"),
+                "TASK": get_icon_data_uri("clipboard-check.svg"),
+                "MASKING POLICY": get_icon_data_uri("shield-half-full.svg"),
+                "TAG": get_icon_data_uri("tag-multiple.svg"),
             }
-            icon_url = icon_map.get(obj_type, f"{icon_url_base}help-circle.svg")
+            icon_url = icon_map.get(obj_type, get_icon_data_uri("help-circle.svg"))
             
             net.add_node(
                 fqn, 
