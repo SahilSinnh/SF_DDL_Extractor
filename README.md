@@ -79,8 +79,9 @@ The app supports both in-browser (external) and Snowsight-integrated (Snowflake-
 7. **Logout** (External Mode Only):
    - Use the sidebar button to close the session.
 
-## Screenshots
+## ScreenGrabs
 
+- Usage Demo: ![Demo](assets/demo-screengrab.gif)
 - Login Screen: ![Login](assets/login-screenshot.png)
 - Object Browser: ![Browser](assets/browser-screenshot.png)
 - Dependency Graph: ![Graph](assets/graph-screenshot.png)
@@ -111,7 +112,7 @@ The app uses Snowflake's Snowpark for queries and maintains session state for ef
 
 ## Limitations
 
-- Does not support some uncommon Snowflake object types.
+- Does not support some uncommon Snowflake object types, generally not available in GET_DDL function.
 - Cannot generate Stage DDL with URL and credentials.
 - Dependency detection relies on regex parsing of DDLs; may miss complex or dynamic references.
 - No support for installing additional packages at runtime (uses pre-installed libraries).
