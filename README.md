@@ -82,9 +82,9 @@ The app supports both in-browser (external) and Snowsight-integrated (Snowflake-
 ## ScreenGrabs
 
 - Usage Demo: ![Demo](assets/demo-screengrab.gif)
-- Login Screen: ![Login](assets/login-screenshot.png)
-- Object Browser: ![Browser](assets/browser-screenshot.png)
-- Dependency Graph: ![Graph](assets/graph-screenshot.png)
+- Login Screen: ![Login](assets/login-page-screenshot.png)
+- Object Browser: ![Browser](assets/object-browser-screenshot.png)
+- Dependency Graph: ![Graph](assets/object-graph-screenshot.png)
 
 ## Architecture Overview
 <pre>
