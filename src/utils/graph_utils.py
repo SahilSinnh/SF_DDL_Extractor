@@ -14,7 +14,6 @@ def get_icon_data_uri(icon_filename: str) -> str:
     
     # Construct the full path to the icon file
     icon_path = os.path.join(script_dir, "../../assets/icons", icon_filename)
-    
     try:
         with open(icon_path, "rb") as f:
             icon_svg = f.read()
@@ -55,17 +54,40 @@ def _generate_legend_html(schema_colors: Dict[str, str], object_color_map: Dict[
     object_legend_html += "</ul>"
 
     legend_html = f'''
-    <div style="position: absolute; top: 10px; right: 10px; background: rgba(40, 40, 40, 0.85); color: white; padding: 10px; border-radius: 5px; max-height: 730px; overflow-y: auto; font-family: sans-serif; font-size: 14px; z-index: 1000;">
-        {schema_legend_html}
-        {object_legend_html}
+    <div style="position: absolute; top: 25px; right: 10px; background: rgba(40, 40, 40, 0.85); color: white; padding: 10px; border-radius: 5px; max-height: 730px; overflow-y: auto; font-family: sans-serif; font-size: 14px; z-index: 1000; display: flex; flex-direction: column;">
+        <button id="toggleLegendBtn" style="background-color: #4CAF50; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; margin-bottom: 10px; align-self: flex-end;"> Hide Legend</button>
+        <div id="legendContent">
+            {schema_legend_html}
+            {object_legend_html}
+        </div>
     </div>
+    <script>
+        document.getElementById('toggleLegendBtn').addEventListener('click', function() {{
+            var content = document.getElementById('legendContent');
+            if (content.style.display === 'none') {{
+                content.style.display = 'block';
+                this.textContent = 'Hide Legend';
+            }} else {{
+                content.style.display = 'none';
+                this.textContent = 'Show Legend';
+            }}
+        }});
+    </script>
     '''
     return legend_html
 
 def create_dependency_graph_figure(objects: List[Dict[str, Any]], deps: Dict[str, Set[str]], selected_schemas: List[str]):
     # Generates an interactive dependency graph using pyvis.
-    net = Network(height="750px", width="100%", bgcolor="#222222", font_color="white", notebook=True, cdn_resources='in_line', directed=True) #type: ignore
-
+    print(deps,"helloooo","selected_schemas",selected_schemas)
+    net = Network(
+        height="750px", 
+        width="100%", 
+        bgcolor="#222222", 
+        font_color="white", # type: ignore
+        notebook=True, 
+        cdn_resources='in_line', 
+        directed=True
+        )
     # Create a color palette for schemas, ensuring they don't clash with object colors
     schema_colors = {}
     palette = [

@@ -2,8 +2,8 @@ name: sf-ddl-extractor-streamlit-environment
 channels:
   - snowflake  # Snowflake's Anaconda channel
 dependencies:
-  - python>=3.11
-  - streamlit>=1.30
-  - snowflake-snowpark-python>=1.13  # for Snowflake integration
-  - pyvis>=0.3.1 # for network graph visualization
-  - cryptography>=41.0 # for key-based authentication
+  - python
+  - streamlit
+  - snowflake-snowpark-python  # for Snowflake integration
+  - pyvis # for network graph visualization
+  - cryptography # for key-based authentication

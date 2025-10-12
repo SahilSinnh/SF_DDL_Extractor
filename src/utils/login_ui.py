@@ -38,9 +38,9 @@ def show_login_form():
                 else:
                     st.file_uploader(":blue[Upload Private Key File]", type=['pem'], key='key_file', help="Upload your private key file in PEM format here.")
             # No additional fields for SSO
-
-            st.text_input(":blue[Warehouse]", key='warehouse', help="Enter your preferred Snowflake warehouse name.")
+            
             st.text_input(":blue[Role Name]", key='role', help="Enter your preferred Snowflake role name.")
+            st.text_input(":blue[Warehouse]", key='warehouse', help="Enter your preferred Snowflake warehouse name.")
 
             button_text = "Login with SSO" if auth_method == 'Single Sign-On (SSO)' else "Login"
             

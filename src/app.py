@@ -1,5 +1,6 @@
 # The main Streamlit application file.
 # Imports
+import time
 import streamlit as st
 from datetime import datetime
 from collections import defaultdict
@@ -13,6 +14,7 @@ import utils.dependencies as dependencies
 import utils.graph_utils as graph_utils
 import utils.login_ui as login_ui
 
+
 # Initialize session state and parameters for Snowflake session and login
 st.query_params["sf"] = "None" if "sf" not in st.query_params else st.query_params["sf"]
 
@@ -22,6 +24,8 @@ try:
     st.session_state['logged_in'] = True
     if st.query_params["sf"] == "None" or st.query_params["sf"] == "True":
         st.query_params["sf"] = "True"
+    st.session_state['warehouse'] = st.session_state['snowflake_session'].get_current_warehouse()
+    st.session_state['role'] = st.session_state['snowflake_session'].get_current_role()
 except:
     st.session_state['logged_in'] = False
     st.query_params["sf"] = "False"
@@ -31,7 +35,14 @@ st.session_state['is_snowflake'] = st.query_params["sf"] == "True"
 # -----------------------------
 # STATE MANAGEMENT HELPERS
 # -----------------------------
+
 def init_session_state():
+    # Restore checkbox states if they were preserved across an expand/collapse action
+    if 'preserved_checkbox_states' in st.session_state:
+        for key, value in st.session_state.preserved_checkbox_states.items():
+            st.session_state[key] = value
+        del st.session_state.preserved_checkbox_states
+
     # Initialize session state keys if they don't exist.
     if "db_selected" not in st.session_state:
         st.session_state.db_selected = None
@@ -51,6 +62,8 @@ def init_session_state():
         st.session_state.script_source_keys = set()
     if "selected_schemas" not in st.session_state:
         st.session_state.selected_schemas = []
+    if "chat_messages" not in st.session_state:
+        st.session_state.chat_messages = []
 
 def reset_app_state():
     # Reset application-specific session state while preserving login-related state.
@@ -130,7 +143,45 @@ def sync_checkbox_state(db_key):
     st.session_state[f"__prev__{db_key}"] = st.session_state.get(db_key, False)
     for sk in sch_keys:
         st.session_state[f"__prev__{sk}"] = st.session_state.get(sk, False)
-
+        
+# Change role dialog        
+@st.dialog("Select Role")
+def change_role(item):
+    selected_role = st.selectbox(
+            f":blue[**:material/assignment_ind: Roles**]",
+            sf.list_roles(item),
+            index=0,
+            key='role_selector'
+        )
+    if st.button("Submit"):
+        st.session_state['role'] = selected_role
+        st.session_state['snowflake_session'].use_role(selected_role)
+        st.rerun()
+        
+# Change warehouse dialog        
+@st.dialog("Select Warehouse")
+def change_warehouse(item):
+    selected_warehouse = st.selectbox(
+            f":blue[**:material/select_all: Warehouses**]",
+            sf.list_warehouses(item),
+            index=0,
+            key='wh_selector'
+        )
+    if st.button("Submit"):
+        st.session_state['wareouse'] = selected_warehouse
+        st.session_state['snowflake_session'].use_warehouse(selected_warehouse)
+        st.rerun()
+        
+# Display About dialog        
+@st.dialog("About!", width="large")
+def about_dialog():  # type: ignore
+    with open("src/utils/about.md", "r") as f:
+        about_text = f.read()
+    st.markdown(about_text, unsafe_allow_html=True)
+col1, col2 = st.columns([0.95, 0.05])
+with col2:
+    if st.button(":material/info:", help="About!", key="about_sec", type="tertiary"):
+        about_dialog()
 # -----------------------------
 # MAIN APP LOGIC
 # -----------------------------
@@ -142,9 +193,7 @@ st.set_page_config(
 
 footer_css = """
 <style>
-    .main .block-container {
-        padding-bottom: 5rem;
-    }
+    .main .block-container { padding-bottom: 5rem; }
     .footer {
         position: fixed;
         left: 0;
@@ -177,9 +226,26 @@ footer_html = f"""
 st.markdown(footer_html, unsafe_allow_html=True)
 
 
-
 if st.session_state['logged_in']:
     init_session_state()
+    
+    # -----------------------------
+        # AI HANDLER
+    # -----------------------------
+    if "chat_messages" not in st.session_state:
+        st.session_state.chat_messages = []
+    if "ai_modal" not in st.session_state:
+        st.session_state.ai_modal = "mistral-7b"
+    if "search_service" not in st.session_state:
+        st.session_state.search_service = "DNA_ADMIN_DB.MGMT.SF_DDL_STREAMLIT_CORTEX_SEARCH"
+    if "context_table" not in st.session_state:
+        st.session_state.context_table = "DNA_ADMIN_DB.MGMT.SF_DDL_STREAMLIT_CONTEXT"
+        
+    import utils.cortex_ai as ai
+    
+    ai.show_chatbot()
+    
+    # -----------------------------
     
     # Sync checkbox state before rendering the rest of the UI
     if st.session_state.db_selected and st.session_state.db_selected != "— Select a database —":
@@ -188,26 +254,50 @@ if st.session_state['logged_in']:
         
     # --- Sidebar for Selections ---
     with st.sidebar:
-        curr_acc = st.session_state['snowflake_session'].get_current_account().replace('"','').upper()
-        curr_wh = st.session_state['snowflake_session'].get_current_warehouse().replace('"','')
-        curr_usr = st.session_state['snowflake_session'].get_current_user().replace('"','')
-        curr_role = st.session_state['snowflake_session'].get_current_role().replace('"','')
-        a, b = st.columns([2,1])
-        with a:
-            if st.session_state['is_snowflake']:
-                st.write(f"`(Snowsight)`")
-            else:
-                st.write(f"`(External)`")
-            st.write(f"##### `{curr_acc}` :blue[|] `{curr_wh}`")
-            st.write(f"##### `{curr_usr}` :blue[|] `{curr_role}`")
-        with b:
+        # New panel at the top of the sidebar
+        icon_path = "assets/icons/snowflake-logo.svg"
+        
+        col1, col2 = st.columns([5, 2])
+        with col1:
+            col1_1, col1_2 = st.columns([1, 4])
+            with col1_1:
+                st.image(icon_path)
+            with col1_2:
+                ""
+                account_name = st.session_state['snowflake_session'].get_current_account().replace('"', '').upper()
+                st.markdown(f'''
+            <div>
+                <span style='color: #29B5E8; font-weight: bold;'>{account_name}<br>
+                ({"Snowsight" if st.session_state['is_snowflake'] else "External"} Session)</span>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            curr_wh = st.session_state['snowflake_session'].get_current_warehouse().replace('"','')
+            curr_role = st.session_state['snowflake_session'].get_current_role().replace('"','')
+            col1_a, col1_b = st.columns(2)
+            with col1_a:
+                st.write("")
+                if st.button(f":violet[:material/assignment_ind: **{st.session_state['role'].replace('"','')}**]", help="Change active role."):
+                    change_role(curr_role)
+            with col1_b:
+                st.write("")
+                if st.button(f":violet[:material/select_all: **{st.session_state['warehouse'].replace('"','')}**]", help="Change active warehouse."):
+                    change_warehouse(curr_wh)
+                    
+        with col2:
+            username = sf.get_user()
+            if username: st.markdown(f"### :rainbow[:material/account_circle: **{username}**]")
             if not st.session_state['is_snowflake']:
-                if st.button("**:material/logout: Logout**", key="logout_btn"):
+                if st.button("**:material/logout: Log Out**", key="logout_btn"):
                     with st.spinner(f"Logging out..."):
                         st.session_state['snowflake_session'].close()
+                        st.toast("Logged out!", icon=":material/logout:")
+                        st.cache_data.clear()
                         st.session_state.clear()
                         st.rerun()
-                        
+        
+        st.markdown("---")
+        
         db_options = ["— Select a database —"] + sf.list_databases()
         selected_db = st.selectbox(
             f":orange[**{sql_parser.get_material_icon('DATABASE')} Database**]",
@@ -272,7 +362,7 @@ if st.session_state['logged_in']:
 
                         st.session_state.objects = clean_objects
                         st.session_state.grouped_objects = grouped
-                        st.success(f"Successfully parsed {len(clean_objects)} objects from '{selected_db}'.")
+                        st.toast(f":green[Successfully parsed {len(clean_objects)} objects from '{selected_db}'.]")
 
             # --- Schema Selection in Sidebar ---
             if st.session_state.objects:
@@ -324,9 +414,31 @@ if st.session_state['logged_in']:
                     st.success(f"{len(selected_objects)} objects selected. Scroll down to download the SQL script.")
 
                     current_script_keys = {o['obj_key'] for o in selected_objects}
-                    if current_script_keys != st.session_state.script_source_keys:
-                        st.session_state.final_script_output = ";\n\n".join([o['ddl'] for o in selected_objects]) + ";"
+
+                    # If the checkbox state is not in session_state, initialize it
+                    if 'include_schema_ddl' not in st.session_state:
+                        st.session_state.include_schema_ddl = False
+
+                    # Regenerate script if selected objects or checkbox state has changed
+                    if (current_script_keys != st.session_state.get('script_source_keys') or
+                        st.session_state.include_schema_ddl != st.session_state.get('prev_include_schema_ddl')):
+
+                        base_script = ";\n\n".join([o['ddl'] for o in selected_objects]) + ";"
+
+                        if st.session_state.include_schema_ddl:
+                            # Extract distinct schemas from selected objects
+                            distinct_schemas = sorted(list(set(o['schema'] for o in selected_objects if 'schema' in o)))
+                            # Generate CREATE SCHEMA statements
+                            schema_ddls = [f'CREATE SCHEMA IF NOT EXISTS "{schema}";' for schema in distinct_schemas]
+                            # Prepend schema DDLs to the main script
+                            schema_prefix = "\n".join(schema_ddls)
+                            st.session_state.final_script_output = f"{schema_prefix}\n\n{base_script}"
+                        else:
+                            st.session_state.final_script_output = base_script
+
+                        # Update session state to cache the current state
                         st.session_state.script_source_keys = current_script_keys
+                        st.session_state.prev_include_schema_ddl = st.session_state.include_schema_ddl
 
                     # --- Pre-download check for database references ---
                     db_ref_warnings = []    # List to store warnings per object with multiple matches
@@ -450,7 +562,10 @@ if st.session_state['logged_in']:
                                 st.markdown(f"- **{warning['object_type']}:** `{warning['fully_qualified_name']}`")
                                 with st.expander(f"{num_matches} occurrence{plural}"):
                                     st.code(warning['snippet'], language='sql')
-
+                    
+                    # Include Schema DDL - Create Schema If Not Exists
+                    st.checkbox("Include Schema DDL", key='include_schema_ddl', help="If selected, adds `CREATE SCHEMA IF NOT EXISTS` statements for all schemas of the selected objects.")
+                    
                     # --- Display and Download ---
                     code_container = st.container(height=400)
                     code_container.code(
@@ -467,16 +582,27 @@ if st.session_state['logged_in']:
                         mime="text/plain",
                         use_container_width=True,
                     ):
-                        st.success(f":material/download: Downloaded - **{file_name}**!")
+                        st.toast(f"Downloaded - **{file_name}**!", icon=":material/download_done:")
+                    
+                    ""
+                    ""
+                    st.info(f":material/emoji_objects: To get Insert statement with existing data for a table, run this in the database (replacing <schema_name> and <table_name> with the appropriate values):")
+                    st.code("""WITH FormattedRows AS (   SELECT     f.seq,     '(' || LISTAGG(       IFF(f.value IS NULL, 'NULL', '''' || REPLACE(f.value::varchar, '''', '''''') || ''''),       ', '     ) WITHIN GROUP (ORDER BY f.index) || ')' AS RowValue   FROM     (SELECT ARRAY_CONSTRUCT(*) AS arr FROM <schema_name>.<table_name>),     LATERAL FLATTEN(INPUT => arr) f   GROUP BY f.seq ) SELECT   'INSERT INTO '||SCHEMA_NAME||'.'||TABLE_NAME||' (' ||   (SELECT LISTAGG(COLUMN_NAME, ', ') WITHIN GROUP (ORDER BY ORDINAL_POSITION)    FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '<schema_name>' AND TABLE_NAME = '<table_name>') ||   ')  VALUES  ' ||   LISTAGG(RowValue, ', ') || ';' FROM FormattedRows;""", language='sql')
+                    
         else:
             reset_app_state() # Clear all state for new DB
             init_session_state()
 
     # --- Main Area for Object Display ---
-    
-    st.title(f":violet[:material/ac_unit: Snowflake DDL Extractor {st.__version__}]")
-    st.markdown(":violet[**A tool to extract, parse, and download object DDLs from a Snowflake database.**]")
-
+    co1, co2 = st.columns([6,1])
+    with co1:
+        st.title(f":violet[:material/ac_unit: Snowflake DDL Extractor]")
+        st.markdown(":violet[**A tool to extract, parse, and download object DDLs from a Snowflake database.**]")
+    with co2:
+        ""
+        ""
+        st.image("assets/icons/streamlit-logo.svg", caption = st.__version__, width=40)
+    st.markdown("---")
     if st.session_state.db_selected and st.session_state.db_selected != "— Select a database —":
         if st.session_state.objects:
             # --- Dialog Definition ---
@@ -509,14 +635,22 @@ if st.session_state['logged_in']:
             # --- Global Expand/Collapse Toggle ---
             if 'expand_all_toggle' not in st.session_state:
                 st.session_state.expand_all_toggle = None # None means use default states
-
+            
+            exp_col_bttn_title = ":material/expand_all: Expand All" if st.session_state.expand_all_toggle is not True else ":material/collapse_all: Collapse All"
             c1, c2, c3 = st.columns(3)
-            if c3.button("Expand/Collapse All", type="tertiary", use_container_width=True, help="Expand/Collapse all schema and object type sections."):
+            if c3.button(exp_col_bttn_title, type="tertiary", use_container_width=True, help=f"{exp_col_bttn_title} schema and object type sections."):
+                # Preserve checkbox states before rerun
+                st.session_state.preserved_checkbox_states = {
+                    o['obj_key']: st.session_state.get(o['obj_key'], False)
+                    for o in st.session_state.objects
+                }
+                
                 # If currently in a mixed state or all collapsed, expand all. Otherwise, collapse all.
                 if st.session_state.expand_all_toggle is not True:
                     st.session_state.expand_all_toggle = True
                 else:
                     st.session_state.expand_all_toggle = False
+                st.rerun()
 
 
             with c1:
@@ -571,11 +705,12 @@ if st.session_state['logged_in']:
 
     else:
         st.info("Select a database from the dropdown menu in the sidebar to begin.")
+        
+        
 else:
     # Show login form if not in Snowflake
     if not st.session_state['is_snowflake']:
-        with st.container():
-            st.markdown("<span style='position: absolute; top: 8%; left: 10%;'>**`(External)`**</span>", unsafe_allow_html=True)
+        st.info(":material/info: Running **externally**. Please log into a **Snowflake** account to continue.")
         login_ui.show_login_form()
     else:
         # Just in case
