@@ -27,8 +27,8 @@ def order_objects_by_dependencies(objects: List[Dict]) -> Tuple[List[Dict], Dict
     # Regex to find qualified identifiers like DB.SCHEMA.OBJ or SCHEMA.OBJ
     # It correctly handles quoted parts.
     ID = r'(?:\"[^\"]+\"|[A-Za-z_][A-Za-z0-9_\$]*)'
-    QUAL_ID_REGEX = re.compile(rf'(?<!\w)({ID})\s*\.\s*({ID})(?:\s*\.\s*({ID}))?(?!\w)')
-
+    QUAL_ID_REGEX = re.compile(rf'(?<!\w)({ID})\s*\.\s*({ID})(?:\s*\.\s*({ID}))?(?:\s*\.\s*({ID}))?(?!\w)')
+    
     # --- 1. Pre-process and Index all objects ---
     objs = []
     for o in objects:
@@ -58,10 +58,13 @@ def order_objects_by_dependencies(objects: List[Dict]) -> Tuple[List[Dict], Dict
 
         # A. Find explicit dependencies via regex on DDL
         for m in QUAL_ID_REGEX.finditer(o["_DDL_UPPER"]):
-            p1, p2, p3 = m.groups()
-            
+            p1, p2, p3, p4 = m.groups()
             target_fqn = None
-            if p3:  # 3-part reference: DB.SCHEMA.OBJECT
+            if p4 and p4.upper() == "NEXTVAL":  # 4-part reference: DB.SCHEMA.OBJECT.NEXTVAL
+                cand_fqn = canon_fqn(p1, p2, p3)
+                if cand_fqn in by_fqn:
+                    target_fqn = cand_fqn
+            if p3 and p3.upper() != "NEXTVAL":  # 3-part reference: DB.SCHEMA.OBJECT
                 cand_fqn = canon_fqn(p1, p2, p3)
                 if cand_fqn in by_fqn:
                     target_fqn = cand_fqn
@@ -87,14 +90,14 @@ def order_objects_by_dependencies(objects: List[Dict]) -> Tuple[List[Dict], Dict
         if o["object_type"] != "DATABASE" and o["_DB"]:
             db_fqn = canon_fqn(None, None, o["_DB"])
             if db_fqn and db_fqn in by_fqn and by_fqn[db_fqn]['object_type'] == 'DATABASE':
-                 o_deps.add(db_fqn)
+                o_deps.add(db_fqn)
 
         deps[cur_fqn].update(o_deps)
         for d in o_deps:
             if d:
                 outs[d].add(cur_fqn)
 
-    # --- 3. Kahn's Algorithm for Topological Sort ---
+    # --- C. Kahn's Algorithm for Topological Sort ---
     in_degree = {n: len(deps.get(n, set())) for n in nodes}
     queue: deque[str] = deque([n for n, d in in_degree.items() if d == 0])
     ordered = []

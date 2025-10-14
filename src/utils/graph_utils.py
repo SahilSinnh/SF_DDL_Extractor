@@ -78,7 +78,6 @@ def _generate_legend_html(schema_colors: Dict[str, str], object_color_map: Dict[
 
 def create_dependency_graph_figure(objects: List[Dict[str, Any]], deps: Dict[str, Set[str]], selected_schemas: List[str]):
     # Generates an interactive dependency graph using pyvis.
-    print(deps,"helloooo","selected_schemas",selected_schemas)
     net = Network(
         height="750px", 
         width="100%", 
