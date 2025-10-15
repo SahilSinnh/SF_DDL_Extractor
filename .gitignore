@@ -24,6 +24,7 @@ env/
 *.swo
 .DS_Store
 Thumbs.db
+.devcontainer/
 
 # Builds/Dist (if packaging later)
 build/
