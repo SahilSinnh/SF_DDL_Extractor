@@ -1,9 +1,0 @@
-name: sf-ddl-extractor-streamlit-environment
-channels:
-  - snowflake  # Snowflake's Anaconda channel
-dependencies:
-  - python
-  - streamlit
-  - snowflake-snowpark-python  # for Snowflake integration
-  - pyvis # for network graph visualization
-  - cryptography # for key-based authentication
