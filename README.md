@@ -4,7 +4,7 @@
   <img src="assets/icons/Python-Brand-Logo.svg" alt="Python" height="25">
 </a>
 <a href="https://streamlit.io/">
-  <img src="assets/icons/Streamlit-Brand-Logo.svg" alt="Streamlit" height="25">
+  <img src="assets/icons/Streamlit-2-Logo.svg" alt="Streamlit" height="25">
 </a>
 <a href="https://www.snowflake.com/">
   <img src="assets/icons/Snowflake-Brand-Logo.svg" alt="Snowflake" height="25">
