@@ -1,35 +1,38 @@
+## About This App
 
-# Snowflake DDL Extractor
+Welcome to SnowDL Genie! This application is your one-stop solution for quickly and easily extracting Data Definition Language (DDL) statements or visualize dependencies from your Snowflake database, useful for deployments to other environments.
 
-A Streamlit-based web application for extracting, parsing, and downloading Data Definition Language (DDL) scripts from Snowflake databases and visualizing object dependencies.
+### What it Does
 
-## Key Features
+Have you ever needed to view the `CREATE` statement for multiple table, view, or stored procedure in Snowflake, but found it cumbersome to do so through the Snowflake UI? This tool simplifies that process entirely.
 
-- **Secure Snowflake Connection**: Connect to your Snowflake account using basic authentication (username/password), private key pair, or Single Sign-On (SSO). When running within Snowsight, the app automatically authenticates using the existing session.
+With just a few clicks, you can:
 
-- **Interactive Object Browser**:
-    - Browse and select database objects (schemas, tables, views, etc.) through a hierarchical interface.
-    - Filter objects by name and select specific schemas to work with.
-    - Global, per-schema, and individual object selection is supported.
+- **Connect to any Snowflake account** you have access to.
+- **Browse through your databases and schemas** to find the objects you're interested in.
+- **Instantly view the DDL** in real time for one or multiple, wide variety of object types, including:
+  - Tables
+  - Views
+  - Schemas
+  - Stored Procedures
+  - User-Defined Functions
+  - Pipes
+  - Streams
+  - and many more
+- **Download or Copy the DDL to your clipboard** with a single click, so you can use it in your own scripts and projects.
 
-- **DDL Generation and Export**:
-    - Automatically generates DDL scripts for your selected objects.
-    - Intelligently sorts the script based on object dependencies to ensure correct deployment order.
-    - Optionally includes `CREATE SCHEMA` statements for the selected objects.
-    - Provides warnings for any hardcoded database references in the DDL.
-    - Download the final, consolidated DDL script as a single `.sql` file.
+### Why Use This App?
 
-- **Dependency Visualization**:
-    - Generate and view an interactive dependency graph to understand the relationships between your database objects.
+- **Simplicity:** No need to write complex queries or navigate through multiple screens in the Snowflake UI. Everything you need is right here in a clean, intuitive interface.
+- **Efficiency:** Save time and effort by quickly getting the DDLs you need.
+- **Flexibility:** Connect to different Snowflake accounts and environments with ease.
 
-- **Session Management**:
-    - Change your active role and warehouse within the application.
-    - Your session state is preserved for a seamless experience.
+I hope this tool makes your work with Snowflake easier and more productive!
 
-- **Data Export Helper**:
-    - Provides a handy SQL snippet to generate `INSERT` statements for your tables, allowing you to export data along with the DDL.
 
-## About the Author
+---
 
-This application was created by **Sahil Singh**.
 
+Created with :material/favorite: by [Sahil](https://www.linkedin.com/in/sahil-d-singh/)
+
+©   2025    [Sahil Singh]

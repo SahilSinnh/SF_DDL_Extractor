@@ -1,4 +1,0 @@
-[cortex]
-models = ["mistral-large-latest", "snowflake-arctic", "llama3-8b", "llama3-70b-8192", "mixtral-8x7b-32768", "gemma-7b-it"]
-tables = ["DNA_ADMIN_DB.MGMT.SF_DDL_STREAMLIT_CONTEXT"]
-services = ["DNA_ADMIN_DB.MGMT.SF_DDL_STREAMLIT_CORTEX_SEARCH"]

@@ -2,7 +2,7 @@
 
 import re
 from collections import defaultdict, deque
-from typing import List, Dict, Set, Any, Optional, Tuple
+from typing import List, Dict, Set, Optional, Tuple
 
 
 def order_objects_by_dependencies(objects: List[Dict]) -> Tuple[List[Dict], Dict[str, Set[str]]]:

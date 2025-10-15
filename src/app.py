@@ -1,7 +1,5 @@
 # The main Streamlit application file.
 # Imports
-import toml
-import traceback
 import streamlit as st
 from datetime import datetime
 from collections import defaultdict
@@ -15,12 +13,12 @@ import utils.sql_parser as sql_parser
 import utils.dependencies as dependencies
 import utils.graph_utils as graph_utils
 import utils.login_ui as login_ui
-import utils.cortex_ai
+import utils.chatbot as bot
 
 snowflake_logo_path = "assets/icons/snowflake-logo.svg"     # Sidebar Header Icon
 streamlit_logo_path = "assets/icons/streamlit-logo.svg"     # Main Page Icon
 about_file_path = "src/utils/about.md"                      # About/Help content
-config_file_path = "src/config.toml"                        # Cortex AI config environments
+models = ["llama3-8b", "mistral-7b", "llama3-70b-8192", "mixtral-8x7b-32768", "gemma-7b-it"]    # Cortex AI MOdels
 
 # ----------------------------->
 # STATE MANAGEMENT
@@ -77,26 +75,12 @@ def initialize_session():
         
         # Cortex AI Chatbot session state keys
         # Load configuration from a TOML file.
-        try:
-            if 'cortex_models' not in st.session_state or 'context_tables' not in st.session_state or 'cortex_services' not in st.session_state:
-                config = toml.load(config_file_path)
-                cortex_config = config.get("cortex", {})
-        except FileNotFoundError:
-            cortex_config = {}
         if 'chat_messages' not in st.session_state:
-            st.session_state['chat_messages'] = [],
+            st.session_state['chat_messages'] = []
         if 'cortex_models' not in st.session_state:
-            st.session_state['cortex_models'] = cortex_config.get("models", [])
-        if 'context_tables' not in st.session_state:
-            st.session_state['context_tables'] = cortex_config.get("tables", [])
-        if 'cortex_services' not in st.session_state:
-            st.session_state['cortex_services'] = cortex_config.get("services", [])
+            st.session_state['cortex_models'] = models
         if 'selected_cortex_model' not in st.session_state:
             st.session_state['selected_cortex_model'] = st.session_state['cortex_models'][0] if st.session_state['cortex_models'] else ""
-        if 'selected_context_table' not in st.session_state:
-            st.session_state['selected_context_table'] =   st.session_state['context_tables'][0] if st.session_state['context_tables'] else ""
-        if 'selected_cortex_service' not in st.session_state:
-            st.session_state['selected_cortex_service'] =  st.session_state['cortex_services'][0] if st.session_state['cortex_services'] else ""
         
     except Exception:
         # Handle cases where no active session is found.
@@ -136,8 +120,7 @@ def reset_app_state():
         'snowflake_session', 'logged_in', 'is_snowflake', 'session_type', 
         'auth_method', 'password', 'key_option', 'key_content', 'key_file', 'is_loading', 
         'account', 'user', 'role', 'role_list', 'warehouse', 'wh_list', 'db_list', 'role_changed',
-        'chat_messages', 'cortex_models', 'context_tables', 'cortex_services', 
-        'selected_cortex_model', 'selected_context_table', 'selected_cortex_service',
+        'chat_messages', 'cortex_models', 'selected_cortex_model',
     }
     keys_to_clear = [key for key in st.session_state.keys() if key not in account_keys]
     for key in keys_to_clear:
@@ -409,6 +392,12 @@ def about_dialog():
         about_text = f.read()
     st.markdown(about_text, unsafe_allow_html=True)
 
+# Defines a dialog to show the "Session States" information for the App session.
+@st.dialog("Session States", width="large")
+@st.fragment
+def session_dialog():
+    st.write(st.session_state)
+
 # Defines a dialog to change the current Snowflake role.
 @st.dialog("Select Role")
 @st.fragment
@@ -438,7 +427,7 @@ def change_warehouse():
     )
     if st.button("Submit"):
         st.session_state['snowflake_session'].use_warehouse(selected_warehouse)
-        st.session_state['snowflake_session'] = selected_warehouse
+        st.session_state['warehouse'] = selected_warehouse
         st.toast(f":material/info: Switching to Warehouse - {selected_warehouse}.", duration = 6)
         st.rerun()
         
@@ -500,18 +489,22 @@ def setup_page():
         <span style="color: gray;">Created by</span> <a href="https://www.linkedin.com/in/sahil-d-singh/" target="_blank" rel="noopener noreferrer" ><span class="rainbow-text">Sahil Singh</span></a>
     </div>
     '''
-    st.html(footer_html)
+    st.markdown(footer_html, unsafe_allow_html=True)
 
     # "About" button in the top right corner.
-    col1, col2 = st.columns([0.95, 0.05])
+    col1, col2 = st.columns([9, 1])
     with col2:
-        col2_a, col2_b = st.columns(2)
+        col2_a, col2_b, col2_c= st.columns(3)
         with col2_a:
-            if st.button("", icon=":material/refresh:", help="Refresh Page", key="refresh_button", type="tertiary"):
-                st.rerun()
-        with col2_b:
             if st.button("", icon=":material/info:", help="About!", key="about_section", type="tertiary"):
                 about_dialog()
+        with col2_b:
+            if st.button("", icon=":material/network_intelligence:", help="Session States", key="session_states", type="tertiary"):
+                session_dialog()
+        with col2_c:
+            if st.button("", icon=":material/refresh:", help="Refresh Page", key="refresh_button", type="tertiary"):
+                st.session_state['db_selector'] = "— Select a database —"
+                st.rerun()
             
 # Renders the header section of the sidebar with session info.
 def render_sidebar_header():
@@ -700,14 +693,21 @@ def render_object_display_area():
 
 # Renders the main content area of the application.
 def render_main_area():
-    co1, co2 = st.columns([6, 1])
+    co1, co2 = st.columns([5, 3])
     with co1:
-        st.title(":violet[:material/ac_unit: Snowflake DDL Extractor]")
-        st.markdown(":violet[**A tool to extract, parse, and download object DDLs from a Snowflake database.**]")
+        st.title(":violet[:material/ac_unit: SnowDL Genie]")
+        st.write("#### Snowflake DDL Master")
+        st.markdown(":violet[**A tool to parse, analyse, extract, and download object DDLs from a Snowflake database.**]")
     with co2:
-        st.write("")
-        st.write("")
-        st.image(streamlit_logo_path, caption=st.__version__, width=40)
+        h1, h2 = st.columns([7, 4])
+        with h1:
+            st.write("")
+            st.write("")
+            st.image(streamlit_logo_path, caption=st.__version__, width=40)
+        with h2:
+            st.write("")
+            # AI Chatbot feature.
+            bot.main()
     st.markdown("---")
 
     # Display object details or a prompt to select a database.
@@ -732,9 +732,6 @@ def main():
     if st.session_state['logged_in']:
         init_session_state()
         
-        # AI Chatbot feature.
-        #show_chatbot()
-    
         # Synchronize checkbox states if a database is selected.
         if st.session_state.db_selected and st.session_state.db_selected != "— Select a database —":
             db_key = f"DB|{st.session_state.db_selected}"
@@ -756,5 +753,4 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        st.error(e)
-        st.error(traceback.format_exc())
+        st.exception(e)
